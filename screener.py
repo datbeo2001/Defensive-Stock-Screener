@@ -8,20 +8,23 @@
 from concurrent.futures import ThreadPoolExecutor
 from queue import SimpleQueue, Empty
 from pathlib import Path
-from collections import defaultdict
 from codetiming import Timer
+from collections import defaultdict
 import finnhub as fh
 import pandas as pd
 import time
 import datetime as dt
 import logging
 
-criteria = {'PE': ('<', 10), 'PB': ('<=', 0.7), 'RG5Y': ('>=', 10), 'DE': ('<', 100), 'CHP': 0.7, 'ROE': ('>=', 25)}
+criteria = {'PE': 10, 'PB': 0.7, 'RG5Y': 10, 'DE': 100, 'CHP': 0.7, 'ROE': 25}
 filtered_count = 0
+StockQueue = SimpleQueue()
+Filtered = SimpleQueue()
 
 
 class Stock:
     """A class that stores the information of an undervalued stock"""
+
     def __init__(self, symbol='', name='', c_price=0, exchange='', industry='', weburl=''):
         self.symbol = symbol
         self.name = name
@@ -48,9 +51,28 @@ def read_from_excel() -> pd.DataFrame:
     return data
 
 
+def import_or_not() -> bool:
+    while True:
+        answer = input("Do you want to import your own stock file(yes/no): ")
+        if answer in ('yes', 'no'):
+            break
+        print("Please type 'yes' or 'no'.")
+    return True if answer == 'yes' else False
+
+
+def list_from_finnhub() -> {str: [str]}:
+    api_client = fh.Client(api_key='btpvg6v48v6v5kvo1r10')
+    raw_data = api_client.stock_symbols(exchange='US')
+    initial_list = defaultdict(list)
+    for i in raw_data:
+        if i['type'] == "EQS":
+            initial_list['ticker'].append(i['symbol'])
+    return initial_list
+
+
 def create_api_objects(api_key_file) -> [fh.Client]:
     """Get the API keys from the FinnhubAPIkey.txt
-    and create a list ofCLient objects using those keys.
+    and create a list of CLient objects using those keys.
     There are multiple Client objects since an
     API key can only perform 60 calls/minute."""
     api_objects = []
@@ -59,16 +81,15 @@ def create_api_objects(api_key_file) -> [fh.Client]:
     return api_objects
 
 
-StockQueue = SimpleQueue()
-Filtered = SimpleQueue()
-
-
-def create_global_queue(sc_list: pd.DataFrame) -> None:
+def create_global_queue(sc_list: pd.DataFrame or dict) -> None:
     ticker = None
-    for i in sc_list.columns:
-        if i.lower() in ('ticker', 'symbol'):
-            ticker = i
-            break
+    if type(sc_list) == pd.DataFrame:
+        for i in sc_list.columns:
+            if i.lower() in ('ticker', 'symbol'):
+                ticker = i
+                break
+    else:
+        ticker = 'ticker'
 
     for t in sc_list[ticker]:
         StockQueue.put(t)
@@ -76,7 +97,7 @@ def create_global_queue(sc_list: pd.DataFrame) -> None:
 
 def parse_global_queue() -> [Stock]:
     f_list = []
-    
+
     while True:
         try:
             element = Filtered.get(block=False)
@@ -115,7 +136,7 @@ def filter_undervalued_stocks(api: fh.Client) -> None:
         if stock_metrics and match_conditions(stock_metrics):
             peak_price = data['metric']['52WeekHigh']
             last_price = fixed_delay(api.quote, symbol=t)['l']
-            if (last_price/peak_price) <= criteria['CHP']:
+            if (last_price / peak_price) <= criteria['CHP']:
                 stock_profile = fixed_delay(api.company_profile2, symbol=t)
                 valued_stock = Stock(symbol=t)
                 valued_stock.c_price = last_price
@@ -152,21 +173,16 @@ def match_conditions(metrics: {str: int}) -> bool:
     the requirements of the criteria.
     """
     count = 0
-    for m, v in metrics.items():
-        if type(v) in (int, float):
-            compare, threshold = criteria[m]
-            if compare == '>':
-                if v > threshold:
-                    count += 1
-            elif compare == '<':
-                if v < threshold:
-                    count += 1
-            elif compare == '>=':
-                if v >= threshold:
-                    count += 1
-            elif compare == '<=':
-                if v >= threshold:
-                    count += 1
+    if type(metrics['PE']) in (int, float) and metrics['PE'] < criteria['PE']:
+        count += 1
+    if type(metrics['PB']) in (int, float) and metrics['PB'] <= criteria['PB']:
+        count += 1
+    if type(metrics['RG5Y']) in (int, float) and metrics['RG5Y'] >= criteria['RG5Y']:
+        count += 1
+    if type(metrics['DE']) in (int, float) and metrics['DE'] < criteria['DE']:
+        count += 1
+    if type(metrics['ROE']) in (int, float) and metrics['ROE'] >= criteria['ROE']:
+        count += 1
     return count >= len(criteria) - 3
 
 
@@ -197,11 +213,16 @@ def run_program() -> None:
     file_name = input("Please give your result a name (don't include the extension): ")
     logging.basicConfig(format='%(asctime)s  %(message)s',
                         datefmt='%y-%m-%d %H:%M:%S', level=logging.INFO)
+    answer = import_or_not()
+
+    if answer:
+        stock_list = read_from_excel()
+    else:
+        stock_list = list_from_finnhub()
     t = Timer()
     t.start()
-    stock_list = read_from_excel()
     api_list = create_api_objects(open('FinnhubAPIkey.txt'))
-   
+
     create_global_queue(stock_list)
 
     with ThreadPoolExecutor(max_workers=len(api_list)) as executor:
