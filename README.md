@@ -1,5 +1,5 @@
 # Defensive-Stock-Screener
-Before you get started, please install pandas, finnhub-python, and openpyxl through pip. If you have an Anaconda environment then you don't need to do so.
+Before you get started, please install pandas, finnhub-python, and openpyxl through pip.
 This is a stock screener that allows people to sort through a list of stocks and filter out undervalued/defensive stocks.
 Once the program starts, it will ask for a path to a file that contains the stocks you want to filter through. Please only put in a file path of a csv or xlsx, xlsm file. If you don't have one, feel free to use the All_Stock.csv file included in this project.
 Then it will ask where you want to save the resulting file. DO NOT ATTEMPT TO PUT IN A PATH TO A FILE OR YOU WILL BE STUCK IN AN INFINITE LOOP.
