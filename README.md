@@ -7,6 +7,8 @@ Then it will ask if you want to import your own stock list. If the answer is no,
 
 Finally, you will be asked to give the filtered list a name. PLEASE DON'T INCLUDE THE EXTENSION SINCE THE RESULTING FILE WILL BE AN .XLSX FILE.
 
+The program will then run and you will see multiple lines of logs that tell you how many stocks it has filtered and the symbol of the stock that it just filtered.
+
 Since this project attempted API calls from Finnhub, it reads from FinnhubAPIkey.txt, which contains an API key. If you want to speed up, go to finnhub.io and get more API keys then put the key on a new line in that txt file.
 The runtime of this program depends on how many API keys from Finnhub you have and how many stocks you want to filter through.
 
