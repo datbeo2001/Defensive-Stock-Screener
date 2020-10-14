@@ -1,5 +1,5 @@
 # Defensive-Stock-Screener
-Before you get started, please install pandas, finnhub-python, and openpyxl through pip.
+Before you get started, please install pandas, finnhub-python, codetiming and openpyxl through pip.
 This is a stock screener that allows people to sort through a list of stocks and filter out undervalued/defensive stocks.
 Once the program starts, it will ask where you want to save your result. DO NOT ATTEMPT TO PUT IN A PATH TO A FILE OR YOU WILL BE STUCK IN AN INFINITE LOOP.
 
