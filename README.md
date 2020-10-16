@@ -1,5 +1,5 @@
 # Defensive-Stock-Screener
-This is a stock screener that filters out undervalued stock by gathering data from Finnhub API.
+This is a stock screener that filters out undervalued stock by gathering data from Finnhub API. You can run the program through run.py
 
 Before you get started, please install pandas, finnhub-python, codetiming and openpyxl through pip.
 This is a stock screener that allows people to sort through a list of stocks and filter out undervalued/defensive stocks.
