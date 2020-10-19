@@ -5,7 +5,8 @@ import time
 import finnhub as fh
 import logging
 
-criteria = {'PE': 10, 'PB': 0.7, 'RG5Y': 10, 'DE': 100, 'CHP': 0.7, 'ROE': 25}
+criteria = {'PE': ('<', 10), 'PB': ('<=', 0.7), 'RG5Y': ('>', 10), 'DE': ('<', 100),
+            'CHP': 0.7, 'ROE': ('>=', 25), 'PS': ('<', 1)}
 filtered_count = 0
 StockQueue = SimpleQueue()
 Filtered = SimpleQueue()
@@ -66,6 +67,7 @@ def insert_metrics(data_dict: dict) -> {str: int}:
         stock_dict['RG5Y'] = data_dict['metric']['revenueGrowth5Y']
         stock_dict['DE'] = data_dict['metric']['totalDebt/totalEquityAnnual']
         stock_dict['ROE'] = data_dict['metric']['roeTTM']
+        stock_dict['PS'] = data_dict['metric']['psTTM']
     except KeyError:
         pass
     return stock_dict
@@ -77,17 +79,22 @@ def match_conditions(metrics: {str: int}) -> bool:
     the requirements of the criteria.
     """
     count = 0
-    if type(metrics['PE']) in (int, float) and 0 < metrics['PE'] < criteria['PE']:
-        count += 1
-    if type(metrics['PB']) in (int, float) and 0 < metrics['PB'] <= criteria['PB']:
-        count += 1
-    if type(metrics['RG5Y']) in (int, float) and metrics['RG5Y'] >= criteria['RG5Y']:
-        count += 1
-    if type(metrics['DE']) in (int, float) and 0 < metrics['DE'] < criteria['DE']:
-        count += 1
-    if type(metrics['ROE']) in (int, float) and metrics['ROE'] >= criteria['ROE']:
-        count += 1
-    return count == len(criteria) - 1
+    for m, v in metrics.items():
+        c, t = criteria[m]
+        if type(v) in (int, float):
+            if c == '>':
+                if v > t:
+                    count += 1
+            elif c == '<':
+                if v < t:
+                    count += 1
+            elif c == '>=':
+                if v >= t:
+                    count += 1
+            elif c == '<=':
+                if v <= t:
+                    count += 1
+    return count == len(criteria) - 2
 
 
 def filter_undervalued_stocks(api: fh.Client) -> None:
@@ -102,19 +109,19 @@ def filter_undervalued_stocks(api: fh.Client) -> None:
             break
         data = fixed_delay(api.company_basic_financials, symbol=t, metric='all')
         stock_metrics = insert_metrics(data)
-        if stock_metrics and match_conditions(stock_metrics):
+        if stock_metrics != {} and match_conditions(stock_metrics) == True:
             peak_price = data['metric']['52WeekHigh']
             last_price = fixed_delay(api.quote, symbol=t)['l']
             if (last_price / peak_price) <= criteria['CHP']:
-                stock_profile = fixed_delay(api.company_profile2, symbol=t)
                 valued_stock = Stock(symbol=t)
                 valued_stock.c_price = last_price
-                if stock_profile:
+                stock_profile = fixed_delay(api.company_profile2, symbol=t)
+                if stock_profile != {}:
                     valued_stock.name = stock_profile['name']
                     valued_stock.exchange = stock_profile['exchange']
                     valued_stock.industry = stock_profile['finnhubIndustry']
                     valued_stock.web_url = stock_profile['weburl']
                     valued_stock.market_cap = stock_profile['marketCapitalization'] * 10**6
-                    Filtered.put(valued_stock)
-                    filtered_count += 1
-                    logging.info(f"Filtered {filtered_count} stocks. Symbol is {t}")
+                Filtered.put(valued_stock)
+                filtered_count += 1
+                logging.info(f"Filtered {filtered_count} stocks. Symbol is {t}")
