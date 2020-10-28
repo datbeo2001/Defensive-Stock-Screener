@@ -5,8 +5,8 @@ import time
 import finnhub as fh
 import logging
 
-criteria = {'PE': ('<', 10), 'PB': ('<=', 0.7), 'RG5Y': ('>', 10), 'DE': ('<', 100),
-            'CHP': 0.7, 'ROE': ('>=', 25), 'PS': ('<', 1)}
+criteria = {'PE': ('<', 10), 'PB': ('<=', 0.7), 'CHP': 0.7,
+            'RG5Y': ('>=', 10), 'PS': ('<', 1)}
 filtered_count = 0
 StockQueue = SimpleQueue()
 Filtered = SimpleQueue()
@@ -24,7 +24,7 @@ def create_global_queue(sc_list: pd.DataFrame or dict) -> None:
                 break
     else:
         ticker = 'ticker'
-
+    logging.info(f"Scanning {len(sc_list[ticker])} stocks.")
     for t in sc_list[ticker]:
         StockQueue.put(t)
 
@@ -65,8 +65,6 @@ def insert_metrics(data_dict: dict) -> {str: int}:
         stock_dict['PE'] = data_dict['metric']['peNormalizedAnnual']
         stock_dict['PB'] = data_dict['metric']['pbAnnual']
         stock_dict['RG5Y'] = data_dict['metric']['revenueGrowth5Y']
-        stock_dict['DE'] = data_dict['metric']['totalDebt/totalEquityAnnual']
-        stock_dict['ROE'] = data_dict['metric']['roeTTM']
         stock_dict['PS'] = data_dict['metric']['psTTM']
     except KeyError:
         pass
@@ -94,7 +92,7 @@ def match_conditions(metrics: {str: int}) -> bool:
             elif c == '<=':
                 if v <= t:
                     count += 1
-    return count == len(criteria) - 2
+    return count == len(criteria) - 1
 
 
 def filter_undervalued_stocks(api: fh.Client) -> None:
@@ -121,7 +119,7 @@ def filter_undervalued_stocks(api: fh.Client) -> None:
                     valued_stock.exchange = stock_profile['exchange']
                     valued_stock.industry = stock_profile['finnhubIndustry']
                     valued_stock.web_url = stock_profile['weburl']
-                    valued_stock.market_cap = stock_profile['marketCapitalization'] * 10**6
+                    valued_stock.market_cap = stock_profile['marketCapitalization'] * 10 ** 6
                 Filtered.put(valued_stock)
                 filtered_count += 1
                 logging.info(f"Filtered {filtered_count} stocks. Symbol is {t}")
