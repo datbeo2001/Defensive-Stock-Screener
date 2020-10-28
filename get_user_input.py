@@ -31,8 +31,16 @@ def import_or_not() -> bool:
 
 
 def list_from_finnhub() -> {str: [str]}:
+    exc_file = pd.read_excel("exchange.xlsx")
+    exc_list = exc_file.code
+    while True:
+        exc = input("Please choose your exchange: ")
+        exc = exc.upper()
+        if exc in exc_list.array:
+            break
+        print("Invalid exchange. Try again.")
     api_client = fh.Client(api_key='btpvg6v48v6v5kvo1r10')
-    raw_data = api_client.stock_symbols(exchange='US')
+    raw_data = api_client.stock_symbols(exchange=exc)
     initial_list = defaultdict(list)
     for i in raw_data:
         if i['type'] == "EQS":
